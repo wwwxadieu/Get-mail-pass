@@ -447,7 +447,11 @@ mod tests {
             add_number: false,
         })
         .unwrap();
-        assert!(!p.value.contains('-'), "van chen dau gach ngang: {}", p.value);
+        assert!(
+            !p.value.contains('-'),
+            "van chen dau gach ngang: {}",
+            p.value
+        );
         assert!(p.value.chars().all(|c| c.is_ascii_lowercase()));
     }
 

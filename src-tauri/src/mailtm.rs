@@ -185,9 +185,17 @@ fn looks_like_date(s: &str) -> bool {
 fn extract_otp(text: &str) -> Option<String> {
     let lower = text.to_lowercase();
     // "pin" phai khop nguyen tu — neu khong thi "shipping" cung bi tinh la tu khoa
-    let has_keyword = ["code", "otp", "verification", "verify", "ma xac", "mã xác", "confirm"]
-        .iter()
-        .any(|k| lower.contains(k))
+    let has_keyword = [
+        "code",
+        "otp",
+        "verification",
+        "verify",
+        "ma xac",
+        "mã xác",
+        "confirm",
+    ]
+    .iter()
+    .any(|k| lower.contains(k))
         || lower
             .split(|c: char| !c.is_alphanumeric())
             .any(|w| w == "pin");

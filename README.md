@@ -112,3 +112,29 @@ cargo test
 Có sẵn test cho: độ dài mật khẩu, đủ mọi nhóm ký tự, loại ký tự dễ nhầm, không lặp ký tự,
 từ chối tuỳ chọn rỗng, số từ passphrase, dấu nối rỗng, danh sách từ không trùng lặp,
 chống tràn số khi tính thời gian bẻ khoá, lọc thẻ HTML, và nhận diện mã OTP.
+
+---
+
+## CI / CD
+
+Repo có sẵn hai workflow GitHub Actions:
+
+| Workflow | Khi nào chạy | Việc làm |
+|---|---|---|
+| `.github/workflows/ci.yml` | mỗi push vào `main`, mỗi pull request | `tsc --noEmit` + `vite build`; `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` |
+| `.github/workflows/release.yml` | đẩy tag `v*`, hoặc chạy tay | Build trên `windows-latest` bằng `npm run tauri:build`, xuất installer NSIS + MSI |
+
+Muốn phát hành một bản mới:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Workflow sẽ build và đính kèm `PassMail_1.0.0_x64-setup.exe` cùng `PassMail_1.0.0_x64_en-US.msi`
+vào GitHub Release của tag đó. Nếu chỉ muốn lấy file mà chưa phát hành, chạy tay workflow
+**Release (Windows installer)** rồi tải ở mục artifact.
+
+Job Rust chạy trên Ubuntu nên cần cài sẵn thư viện GUI của hệ thống
+(`libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`,
+`libsoup-3.0-dev`) — workflow đã làm sẵn bước này.
