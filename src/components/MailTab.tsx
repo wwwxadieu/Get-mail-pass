@@ -32,6 +32,8 @@ export default function MailTab({ onCopy, onGenerated, notify }: Props) {
   const [open, setOpen] = useState<MailDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadingInbox, setLoadingInbox] = useState(false);
+  const [domainsError, setDomainsError] = useState<string | null>(null);
+  const [loadingDomains, setLoadingDomains] = useState(true);
   const restored = useRef(false);
 
   // Khôi phục địa chỉ của phiên trước
@@ -55,15 +57,26 @@ export default function MailTab({ onCopy, onGenerated, notify }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    api
-      .mailDomains()
-      .then((d) => {
-        setDomains(d);
-        setDomain((cur) => cur || d[0] || "");
-      })
-      .catch(() => setDomains([]));
+  // Nuot loi o day tung khien danh sach ten mien rong ma khong ai biet tai sao:
+  // giao dien cu bao "Dang tai danh sach..." mai mai. Gio hien han loi va cho thu lai.
+  const loadDomains = useCallback(async () => {
+    setLoadingDomains(true);
+    try {
+      const d = await api.mailDomains();
+      setDomains(d);
+      setDomain((cur) => cur || d[0] || "");
+      setDomainsError(null);
+    } catch (e) {
+      setDomains([]);
+      setDomainsError(errText(e));
+    } finally {
+      setLoadingDomains(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadDomains();
+  }, [loadDomains]);
 
   // Nhận hộp thư mới từ vòng lặp nền trong Rust
   useEffect(() => {
@@ -289,7 +302,9 @@ export default function MailTab({ onCopy, onGenerated, notify }: Props) {
             disabled={domains.length === 0}
           >
             {domains.length === 0 ? (
-              <option>Đang tải danh sách…</option>
+              <option>
+                {loadingDomains ? "Đang tải danh sách…" : "Không tải được danh sách"}
+              </option>
             ) : (
               domains.map((d) => (
                 <option key={d} value={d}>
@@ -298,11 +313,19 @@ export default function MailTab({ onCopy, onGenerated, notify }: Props) {
               ))
             )}
           </select>
+          {domainsError && (
+            <div className="field-error">
+              <span>Không lấy được danh sách tên miền: {domainsError}</span>
+              <button className="btn ghost" onClick={() => void loadDomains()} disabled={loadingDomains}>
+                {loadingDomains ? <span className="spin" /> : "Thử lại"}
+              </button>
+            </div>
+          )}
 
           <button
             className="btn primary wide"
             style={{ marginTop: 20 }}
-            disabled={busy}
+            disabled={busy || domains.length === 0}
             onClick={() => void create()}
           >
             {busy ? <span className="spin" /> : null}
