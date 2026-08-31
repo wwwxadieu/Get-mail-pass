@@ -13,15 +13,15 @@ static HTTP: Lazy<Client> = Lazy::new(|| {
         .timeout(Duration::from_secs(20))
         .user_agent("PassMail/1.0")
         .build()
-        .expect("khong tao duoc http client")
+        .expect("không tạo được HTTP client")
 });
 
 static OTP_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\b(\d{4,8})\b").expect("bieu thuc chinh quy OTP_RE khong hop le"));
+    Lazy::new(|| Regex::new(r"\b(\d{4,8})\b").expect("biểu thức chính quy OTP_RE không hợp lệ"));
 // crate `regex` khong ho tro backreference nen phai viet tuong minh tung the mot
 static TAG_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?is)<script[^>]*>.*?</script>|<style[^>]*>.*?</style>|<!--.*?-->|<[^>]+>")
-        .expect("bieu thuc chinh quy TAG_RE khong hop le")
+        .expect("biểu thức chính quy TAG_RE không hợp lệ")
 });
 
 #[derive(Debug, Serialize, Clone)]
@@ -137,13 +137,13 @@ fn err(msg: impl Into<String>) -> String {
 
 fn map_status(code: StatusCode) -> String {
     match code {
-        StatusCode::TOO_MANY_REQUESTS => err("mail.tm dang gioi han toc do, thu lai sau vai giay"),
-        StatusCode::UNAUTHORIZED => err("Phien dang nhap het han, hay tao dia chi moi"),
-        StatusCode::NOT_FOUND => err("Khong tim thay du lieu tren may chu"),
+        StatusCode::TOO_MANY_REQUESTS => err("mail.tm đang giới hạn tốc độ, thử lại sau vài giây"),
+        StatusCode::UNAUTHORIZED => err("Phiên đăng nhập hết hạn, hãy tạo địa chỉ mới"),
+        StatusCode::NOT_FOUND => err("Không tìm thấy dữ liệu trên máy chủ"),
         StatusCode::UNPROCESSABLE_ENTITY => {
-            err("May chu tu choi du lieu (dia chi da ton tai hoac domain khong hop le)")
+            err("Máy chủ từ chối dữ liệu (địa chỉ đã tồn tại hoặc domain không hợp lệ)")
         }
-        c => format!("May chu tra ve loi {}", c.as_u16()),
+        c => format!("Máy chủ trả về lỗi {}", c.as_u16()),
     }
 }
 
@@ -240,14 +240,14 @@ pub async fn list_domains() -> Result<Vec<String>, String> {
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
     let list: HydraList<ApiDomain> = resp
         .json()
         .await
-        .map_err(|e| format!("Du lieu domain khong hop le: {e}"))?;
+        .map_err(|e| format!("Dữ liệu domain không hợp lệ: {e}"))?;
     let domains: Vec<String> = list
         .member
         .into_iter()
@@ -255,7 +255,7 @@ pub async fn list_domains() -> Result<Vec<String>, String> {
         .map(|d| d.domain)
         .collect();
     if domains.is_empty() {
-        return Err(err("mail.tm hien khong co domain kha dung"));
+        return Err(err("mail.tm hiện không có domain khả dụng"));
     }
     Ok(domains)
 }
@@ -286,13 +286,13 @@ pub async fn create_account(
             .json(&serde_json::json!({ "address": address, "password": password }))
             .send()
             .await
-            .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+            .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
 
         if resp.status().is_success() {
             let acc: ApiAccount = resp
                 .json()
                 .await
-                .map_err(|e| format!("Du lieu tai khoan khong hop le: {e}"))?;
+                .map_err(|e| format!("Dữ liệu tài khoản không hợp lệ: {e}"))?;
             let token = login(&acc.address, &password).await?;
             return Ok(MailAccount {
                 id: acc.id,
@@ -311,7 +311,7 @@ pub async fn create_account(
 }
 
 fn resp_status_is_conflict(msg: &str) -> bool {
-    msg.contains("da ton tai")
+    msg.contains("đã tồn tại")
 }
 
 pub async fn login(address: &str, password: &str) -> Result<String, String> {
@@ -320,14 +320,14 @@ pub async fn login(address: &str, password: &str) -> Result<String, String> {
         .json(&serde_json::json!({ "address": address, "password": password }))
         .send()
         .await
-        .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
     let t: ApiToken = resp
         .json()
         .await
-        .map_err(|e| format!("Du lieu token khong hop le: {e}"))?;
+        .map_err(|e| format!("Dữ liệu token không hợp lệ: {e}"))?;
     let _ = t.id;
     Ok(t.token)
 }
@@ -339,14 +339,14 @@ pub async fn list_messages(token: &str) -> Result<Vec<MailSummary>, String> {
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
     let list: HydraList<ApiMessage> = resp
         .json()
         .await
-        .map_err(|e| format!("Du lieu hop thu khong hop le: {e}"))?;
+        .map_err(|e| format!("Dữ liệu hộp thư không hợp lệ: {e}"))?;
     Ok(list
         .member
         .into_iter()
@@ -375,14 +375,14 @@ pub async fn read_message(token: &str, id: &str) -> Result<MailDetail, String> {
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
     let m: ApiMessageDetail = resp
         .json()
         .await
-        .map_err(|e| format!("Du lieu email khong hop le: {e}"))?;
+        .map_err(|e| format!("Dữ liệu email không hợp lệ: {e}"))?;
     let mut text = m.text.trim().to_string();
     if text.is_empty() && !m.html.is_empty() {
         text = html_to_text(&m.html.join("\n"));
@@ -406,7 +406,7 @@ pub async fn delete_message(token: &str, id: &str) -> Result<(), String> {
         .bearer_auth(token)
         .send()
         .await
-        .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
     if resp.status().is_success() || resp.status() == StatusCode::NO_CONTENT {
         Ok(())
     } else {
@@ -420,7 +420,7 @@ pub async fn delete_account(token: &str, id: &str) -> Result<(), String> {
         .bearer_auth(token)
         .send()
         .await
-        .map_err(|e| format!("Khong ket noi duoc mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
     if resp.status().is_success() || resp.status() == StatusCode::NO_CONTENT {
         Ok(())
     } else {

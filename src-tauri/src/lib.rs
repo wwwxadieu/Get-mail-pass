@@ -31,10 +31,10 @@ fn token_of(state: &State<'_, AppState>) -> Result<String, String> {
     state
         .account
         .lock()
-        .map_err(|_| "Loi trang thai noi bo".to_string())?
+        .map_err(|_| "Lỗi trạng thái nội bộ".to_string())?
         .as_ref()
         .map(|a| a.token.clone())
-        .ok_or_else(|| "Chua co dia chi email nao, hay tao mot dia chi truoc".to_string())
+        .ok_or_else(|| "Chưa có địa chỉ email nào, hãy tạo một địa chỉ trước".to_string())
 }
 
 // ---------------- lenh: mat khau ----------------
@@ -68,7 +68,7 @@ async fn mail_domains() -> Result<Vec<String>, String> {
 async fn mail_check_connection() -> Result<String, String> {
     let domains = mailtm::list_domains().await?;
     Ok(format!(
-        "Ket noi tot — {} domain kha dung (vi du: {})",
+        "Kết nối tốt — {} domain khả dụng (ví dụ: {})",
         domains.len(),
         domains[0]
     ))
@@ -82,11 +82,11 @@ async fn mail_create(
 ) -> Result<MailAccount, String> {
     let acc = mailtm::create_account(local_part, domain).await?;
     let state = app.state::<AppState>();
-    *state.account.lock().map_err(|_| "Loi trang thai noi bo")? = Some(acc.clone());
+    *state.account.lock().map_err(|_| "Lỗi trạng thái nội bộ")? = Some(acc.clone());
     state
         .notified
         .lock()
-        .map_err(|_| "Loi trang thai noi bo")?
+        .map_err(|_| "Lỗi trạng thái nội bộ")?
         .clear();
     Ok(acc)
 }
@@ -107,11 +107,11 @@ async fn mail_restore(
         token,
     };
     let state = app.state::<AppState>();
-    *state.account.lock().map_err(|_| "Loi trang thai noi bo")? = Some(acc.clone());
+    *state.account.lock().map_err(|_| "Lỗi trạng thái nội bộ")? = Some(acc.clone());
     state
         .notified
         .lock()
-        .map_err(|_| "Loi trang thai noi bo")?
+        .map_err(|_| "Lỗi trạng thái nội bộ")?
         .clear();
     Ok(acc)
 }
@@ -142,7 +142,7 @@ async fn mail_destroy(app: AppHandle) -> Result<(), String> {
         let guard = state
             .account
             .lock()
-            .map_err(|_| "Loi trang thai noi bo".to_string())?;
+            .map_err(|_| "Lỗi trạng thái nội bộ".to_string())?;
         guard.clone()
     };
     let result = match &acc {
@@ -154,7 +154,7 @@ async fn mail_destroy(app: AppHandle) -> Result<(), String> {
         let mut guard = state
             .account
             .lock()
-            .map_err(|_| "Loi trang thai noi bo".to_string())?;
+            .map_err(|_| "Lỗi trạng thái nội bộ".to_string())?;
         *guard = None;
     }
     result
@@ -184,7 +184,7 @@ fn spawn_poller(app: AppHandle) {
 
             let messages = match mailtm::list_messages(&acc.token).await {
                 Ok(m) => m,
-                Err(e) if e.contains("het han") => {
+                Err(e) if e.contains("hết hạn") => {
                     // Token het han. Neu chi bo qua thi hop thu se im lang ngung cap nhat
                     // ma nguoi dung khong biet — nen dang nhap lai bang mat khau da luu.
                     if let Ok(new_token) = mailtm::login(&acc.address, &acc.password).await {
@@ -279,5 +279,5 @@ pub fn run() {
             mail_destroy,
         ])
         .run(tauri::generate_context!())
-        .expect("khong khoi dong duoc ung dung");
+        .expect("không khởi động được ứng dụng");
 }
