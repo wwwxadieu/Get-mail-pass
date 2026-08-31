@@ -62,10 +62,29 @@ pub struct MailDetail {
 
 // ---------- kieu du lieu tra ve tu API ----------
 
+/// mail.tm doi dang tra ve theo header Accept: voi `application/json` no tra ve
+/// mang tran, con voi `application/ld+json` thi tra ve object kieu Hydra. Ban
+/// truoc chi nhan `hydra:member` nen mang tran lam serde loi ngay, va vi loi bi
+/// nuot o frontend nen trieu chung chi la "danh sach rong" khong ro nguyen nhan.
+/// Nhan ca hai dang, va khong dat default de shape la khong nhan ra thi bao loi
+/// that su thay vi im lang tra ve rong.
 #[derive(Deserialize)]
-struct HydraList<T> {
-    #[serde(rename = "hydra:member", default = "Vec::new")]
-    member: Vec<T>,
+#[serde(untagged)]
+enum ApiList<T> {
+    Plain(Vec<T>),
+    Wrapped {
+        #[serde(rename = "hydra:member", alias = "member")]
+        member: Vec<T>,
+    },
+}
+
+impl<T> ApiList<T> {
+    fn into_vec(self) -> Vec<T> {
+        match self {
+            ApiList::Plain(v) => v,
+            ApiList::Wrapped { member } => member,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -244,12 +263,12 @@ pub async fn list_domains() -> Result<Vec<String>, String> {
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
-    let list: HydraList<ApiDomain> = resp
+    let list: ApiList<ApiDomain> = resp
         .json()
         .await
         .map_err(|e| format!("Dữ liệu domain không hợp lệ: {e}"))?;
     let domains: Vec<String> = list
-        .member
+        .into_vec()
         .into_iter()
         .filter(|d| d.is_active && !d.is_private)
         .map(|d| d.domain)
@@ -343,12 +362,12 @@ pub async fn list_messages(token: &str) -> Result<Vec<MailSummary>, String> {
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
-    let list: HydraList<ApiMessage> = resp
+    let list: ApiList<ApiMessage> = resp
         .json()
         .await
         .map_err(|e| format!("Dữ liệu hộp thư không hợp lệ: {e}"))?;
     Ok(list
-        .member
+        .into_vec()
         .into_iter()
         .map(|m| {
             let (from_name, from_address) = m.from.map(|f| (f.name, f.address)).unwrap_or_default();
@@ -431,6 +450,45 @@ pub async fn delete_account(token: &str, id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // mail.tm tra ve mang tran khi Accept: application/json — day chinh la dang
+    // that su gap ngoai doi va la nguyen nhan danh sach ten mien bi rong.
+    #[test]
+    fn doc_duoc_mang_tran() {
+        let json = r#"[{"domain":"a.com","isActive":true,"isPrivate":false}]"#;
+        let list: ApiList<ApiDomain> = serde_json::from_str(json).unwrap();
+        let v = list.into_vec();
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].domain, "a.com");
+    }
+
+    #[test]
+    fn doc_duoc_hydra_member() {
+        let json = r#"{"hydra:member":[{"domain":"b.com","isActive":true,"isPrivate":false}]}"#;
+        let list: ApiList<ApiDomain> = serde_json::from_str(json).unwrap();
+        assert_eq!(list.into_vec()[0].domain, "b.com");
+    }
+
+    #[test]
+    fn doc_duoc_member_khong_tien_to() {
+        let json = r#"{"member":[{"domain":"c.com","isActive":true,"isPrivate":false}]}"#;
+        let list: ApiList<ApiDomain> = serde_json::from_str(json).unwrap();
+        assert_eq!(list.into_vec()[0].domain, "c.com");
+    }
+
+    #[test]
+    fn mang_rong_van_hop_le() {
+        let list: ApiList<ApiDomain> = serde_json::from_str("[]").unwrap();
+        assert!(list.into_vec().is_empty());
+    }
+
+    // Shape la khong nhan ra phai bao loi, khong duoc im lang tra ve rong —
+    // chinh cai im lang do lam bug goc kho chan doan.
+    #[test]
+    fn shape_la_thi_bao_loi() {
+        let r: Result<ApiList<ApiDomain>, _> = serde_json::from_str(r#"{"ket_qua":[]}"#);
+        assert!(r.is_err(), "shape la dang bi nuot thanh danh sach rong");
+    }
 
     #[test]
     fn local_part_hop_le() {
