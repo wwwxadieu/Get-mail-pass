@@ -133,7 +133,7 @@ const MAX_TRIES: usize = 10_000;
 
 pub fn generate_password(opts: &PasswordOptions) -> Result<GeneratedPassword, String> {
     if opts.length < 4 || opts.length > 128 {
-        return Err("Do dai mat khau phai tu 4 den 128 ky tu".into());
+        return Err("Độ dài mật khẩu phải từ 4 đến 128 ký tự".into());
     }
     let mut classes: Vec<Vec<char>> = Vec::new();
     if opts.lowercase {
@@ -149,10 +149,10 @@ pub fn generate_password(opts: &PasswordOptions) -> Result<GeneratedPassword, St
         classes.push(class_chars(SYMBOLS, SYMBOLS_AMB, opts.avoid_ambiguous));
     }
     if classes.is_empty() {
-        return Err("Can chon it nhat mot nhom ky tu".into());
+        return Err("Cần chọn ít nhất một nhóm ký tự".into());
     }
     if classes.len() > opts.length {
-        return Err("Do dai qua ngan so voi so nhom ky tu da chon".into());
+        return Err("Độ dài quá ngắn so với số nhóm ký tự đã chọn".into());
     }
 
     let pool: Vec<char> = classes.iter().flatten().copied().collect();
@@ -160,7 +160,7 @@ pub fn generate_password(opts: &PasswordOptions) -> Result<GeneratedPassword, St
 
     if opts.no_repeat && opts.length > pool.len() {
         return Err(format!(
-            "Khong lap ky tu thi do dai toi da la {} voi cac nhom dang chon",
+            "Không lặp ký tự thì độ dài tối đa là {} với các nhóm đang chọn",
             pool.len()
         ));
     }
@@ -183,7 +183,7 @@ pub fn generate_password(opts: &PasswordOptions) -> Result<GeneratedPassword, St
         }
     }
     let chars = chars.ok_or_else(|| {
-        "Khong sinh duoc mat khau thoa man dieu kien — hay tang do dai hoac bot rang buoc"
+        "Không sinh được mật khẩu thoả mãn điều kiện — hãy tăng độ dài hoặc bớt ràng buộc"
             .to_string()
     })?;
 
@@ -194,7 +194,7 @@ pub fn generate_password(opts: &PasswordOptions) -> Result<GeneratedPassword, St
 
 pub fn generate_passphrase(opts: &PassphraseOptions) -> Result<GeneratedPassword, String> {
     if opts.words < 4 || opts.words > 15 {
-        return Err("So tu phai tu 4 den 15".into());
+        return Err("Số từ phải từ 4 đến 15".into());
     }
     let mut rng = OsRng;
     let mut parts: Vec<String> = Vec::with_capacity(opts.words);
@@ -237,11 +237,11 @@ fn build_result(value: String, entropy_bits: f64, pool_size: usize) -> Generated
 
 fn classify(bits: f64) -> (u8, &'static str) {
     match bits {
-        b if b < 40.0 => (0, "Rat yeu"),
-        b if b < 60.0 => (1, "Yeu"),
-        b if b < 80.0 => (2, "Kha"),
-        b if b < 110.0 => (3, "Manh"),
-        _ => (4, "Rat manh"),
+        b if b < 40.0 => (0, "Rất yếu"),
+        b if b < 60.0 => (1, "Yếu"),
+        b if b < 80.0 => (2, "Khá"),
+        b if b < 110.0 => (3, "Mạnh"),
+        _ => (4, "Rất mạnh"),
     }
 }
 
@@ -251,7 +251,7 @@ fn crack_time(bits: f64, guesses_per_sec: f64) -> String {
     let log10_seconds =
         (bits - 1.0) * std::f64::consts::LN_2 / std::f64::consts::LN_10 - guesses_per_sec.log10();
     if log10_seconds < 0.0 {
-        return "tuc thi".into();
+        return "tức thì".into();
     }
     let seconds = if log10_seconds > 300.0 {
         f64::INFINITY
@@ -265,29 +265,29 @@ fn crack_time(bits: f64, guesses_per_sec: f64) -> String {
     const YEAR: f64 = 31_557_600.0;
 
     if seconds < MINUTE {
-        format!("{:.0} giay", seconds.max(1.0))
+        format!("{:.0} giây", seconds.max(1.0))
     } else if seconds < HOUR {
-        format!("{:.0} phut", seconds / MINUTE)
+        format!("{:.0} phút", seconds / MINUTE)
     } else if seconds < DAY {
-        format!("{:.0} gio", seconds / HOUR)
+        format!("{:.0} giờ", seconds / HOUR)
     } else if seconds < MONTH {
-        format!("{:.0} ngay", seconds / DAY)
+        format!("{:.0} ngày", seconds / DAY)
     } else if seconds < YEAR {
-        format!("{:.0} thang", seconds / MONTH)
+        format!("{:.0} tháng", seconds / MONTH)
     } else {
         let years = seconds / YEAR;
         if years < 1000.0 {
-            format!("{:.0} nam", years)
+            format!("{:.0} năm", years)
         } else if years < 1e6 {
-            format!("{:.0} nghin nam", years / 1e3)
+            format!("{:.0} nghìn năm", years / 1e3)
         } else if years < 1e9 {
-            format!("{:.0} trieu nam", years / 1e6)
+            format!("{:.0} triệu năm", years / 1e6)
         } else if years < 1e12 {
-            format!("{:.0} ti nam", years / 1e9)
+            format!("{:.0} tỉ năm", years / 1e9)
         } else if years.is_finite() {
-            format!("10^{:.0} nam", years.log10())
+            format!("10^{:.0} năm", years.log10())
         } else {
-            "vo han".into()
+            "vô hạn".into()
         }
     }
 }
@@ -469,6 +469,6 @@ mod tests {
     fn crack_time_khong_tran_so() {
         let s = crack_time(1024.0, 1e11);
         assert!(!s.is_empty());
-        assert_eq!(crack_time(1.0, 1e11), "tuc thi");
+        assert_eq!(crack_time(1.0, 1e11), "tức thì");
     }
 }
