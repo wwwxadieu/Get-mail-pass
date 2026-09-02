@@ -28,8 +28,8 @@ export const api = {
       domain: domain || null,
     }),
 
-  mailRestore: (id: string, address: string, password: string) =>
-    invoke<MailAccount>("mail_restore", { id, address, password }),
+  mailRestore: (id: string, address: string, password: string, base?: string) =>
+    invoke<MailAccount>("mail_restore", { id, address, password, base: base || null }),
 
   mailInbox: () => invoke<MailSummary[]>("mail_inbox"),
 

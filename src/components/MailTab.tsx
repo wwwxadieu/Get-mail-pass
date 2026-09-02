@@ -46,7 +46,7 @@ export default function MailTab({ onCopy, onGenerated, notify }: Props) {
       const saved = JSON.parse(raw) as MailAccount;
       void (async () => {
         try {
-          const acc = await api.mailRestore(saved.id, saved.address, saved.password);
+          const acc = await api.mailRestore(saved.id, saved.address, saved.password, saved.base);
           setAccount(acc);
         } catch {
           localStorage.removeItem(STORE_KEY);
