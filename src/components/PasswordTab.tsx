@@ -132,7 +132,7 @@ export default function PasswordTab({ onGenerated, onCopy, notify }: Props) {
       </div>
 
       <div className="result">
-        <div className="value">
+        <div className="value" data-copyable>
           {error ? (
             <span style={{ color: "var(--danger)", fontSize: 14, fontFamily: "inherit" }}>
               {error}

@@ -194,7 +194,9 @@ export default function MailTab({ onCopy, onGenerated, notify }: Props) {
             </span>
           </div>
         )}
-        <div className="mail-body">{open.text || "(thư trống)"}</div>
+        <div className="mail-body" data-copyable>
+          {open.text || "(thư trống)"}
+        </div>
         <button
           className="btn danger"
           style={{ marginTop: 14 }}
