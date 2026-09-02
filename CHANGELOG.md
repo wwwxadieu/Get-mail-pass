@@ -16,6 +16,24 @@ Chưa có thay đổi nào. · Nothing yet.
 
 ---
 
+## [1.0.1] — 2026-09-02
+
+### Đã thêm · Added
+
+- **VI —** Nhà cung cấp dự phòng cho email tạm: thử lần lượt mail.tm rồi [mail.gw](https://mail.gw). Hai bên dùng chung codebase nên API giống hệt, đã kiểm chứng cả `/domains`, `/accounts`, `/token` và `/messages` trên mail.gw (#4).
+  **EN —** Fallback provider for disposable email: tries mail.tm, then [mail.gw](https://mail.gw). Both run the same codebase so the API is identical; `/domains`, `/accounts`, `/token` and `/messages` were all verified against mail.gw (#4).
+
+### Đã đổi · Changed
+
+- **VI —** Tài khoản nhớ luôn nhà cung cấp đã tạo ra nó (`MailAccount.base`), vì tài khoản mail.tm không đăng nhập được ở mail.gw và ngược lại. Mọi lời gọi sau đó — đăng nhập lại, đọc thư, xoá thư, xoá địa chỉ, và vòng lặp theo dõi hộp thư — đều đi đúng nhà cung cấp đó.
+  **EN —** An account now records the provider that created it (`MailAccount.base`), because a mail.tm account cannot authenticate against mail.gw or vice versa. Every subsequent call — re-login, reading, deleting mail, deleting the address, and the inbox polling loop — is routed to that same provider.
+- **VI —** Thông báo lỗi nêu đúng tên nhà cung cấp đang gặp sự cố thay vì luôn ghi mail.tm; khi cả hai cùng hỏng thì gộp lý do của từng bên.
+  **EN —** Error messages name the provider that actually failed instead of always saying mail.tm; when both fail, the reasons from each are combined.
+- **VI —** Địa chỉ lưu từ 1.0.0 chưa có thông tin nhà cung cấp sẽ được thử lần lượt từng nhà cung cấp để đăng nhập lại, thay vì bị bỏ.
+  **EN —** Addresses saved by 1.0.0, which carry no provider information, are re-authenticated by trying each provider in turn rather than being discarded.
+
+---
+
 ## [1.0.0] — 2026-08-31
 
 Bản phát hành đầu tiên. · First public release.
@@ -86,5 +104,6 @@ Bản phát hành đầu tiên. · First public release.
 - **VI —** Chỉ hỗ trợ Windows x64. Chưa có bản macOS hay Linux.
   **EN —** Windows x64 only. No macOS or Linux build yet.
 
-[Chưa phát hành]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.0...HEAD
+[Chưa phát hành]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/wwwxadieu/Get-mail-pass/releases/tag/v1.0.0

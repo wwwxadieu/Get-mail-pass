@@ -6,8 +6,6 @@ use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-const BASE: &str = "https://api.mail.tm";
-
 static HTTP: Lazy<Client> = Lazy::new(|| {
     Client::builder()
         .timeout(Duration::from_secs(20))
@@ -31,6 +29,9 @@ pub struct MailAccount {
     pub address: String,
     pub password: String,
     pub token: String,
+    /// Nha cung cap da tao tai khoan nay. Bat buoc phai nho: tai khoan tao o
+    /// mail.tm khong dang nhap duoc o mail.gw va nguoc lai.
+    pub base: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -253,13 +254,23 @@ fn extract_otp(text: &str) -> Option<String> {
 
 // ---------- cac loi goi API ----------
 
-pub async fn list_domains() -> Result<Vec<String>, String> {
+/// Cac nha cung cap email tam, thu lan luot theo thu tu nay. mail.gw dung chung
+/// codebase voi mail.tm nen API giong het — nho vay chi can doi base URL la co
+/// du phong that su khi mail.tm chet hoac bi chan tren mang cua nguoi dung.
+pub const PROVIDERS: &[&str] = &["https://api.mail.tm", "https://api.mail.gw"];
+
+/// "https://api.mail.tm" -> "mail.tm", cho thong bao loi de doc.
+fn host_label(base: &str) -> &str {
+    base.trim_start_matches("https://api.")
+}
+
+async fn fetch_domains(base: &str) -> Result<Vec<String>, String> {
     let resp = HTTP
-        .get(format!("{BASE}/domains?page=1"))
+        .get(format!("{base}/domains?page=1"))
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
@@ -274,17 +285,38 @@ pub async fn list_domains() -> Result<Vec<String>, String> {
         .map(|d| d.domain)
         .collect();
     if domains.is_empty() {
-        return Err(err("mail.tm hiện không có domain khả dụng"));
+        return Err(format!(
+            "{} hiện không có domain khả dụng",
+            host_label(base)
+        ));
     }
     Ok(domains)
 }
 
-/// Tao dia chi moi. `desired_local` de trong thi sinh ngau nhien.
+/// Thu lan luot tung nha cung cap, tra ve base cua cai dau tien chay duoc kem
+/// danh sach domain cua no. Phai tra ve ca base chu khong chi domain, vi moi
+/// buoc sau (tao dia chi, dang nhap, doc thu) deu phai di dung nha cung cap do.
+pub async fn list_domains() -> Result<(String, Vec<String>), String> {
+    let mut errs: Vec<String> = Vec::new();
+    for base in PROVIDERS {
+        match fetch_domains(base).await {
+            Ok(d) => return Ok(((*base).to_string(), d)),
+            Err(e) => errs.push(format!("{}: {e}", host_label(base))),
+        }
+    }
+    Err(format!(
+        "Không nhà cung cấp nào phản hồi — {}",
+        errs.join(" | ")
+    ))
+}
+
+/// Tao dia chi moi tren `base`. `desired_local` de trong thi sinh ngau nhien.
 pub async fn create_account(
+    base: &str,
     desired_local: Option<String>,
     desired_domain: Option<String>,
 ) -> Result<MailAccount, String> {
-    let domains = list_domains().await?;
+    let domains = fetch_domains(base).await?;
     let domain = match desired_domain {
         Some(d) if domains.iter().any(|x| x == &d) => d,
         _ => domains[0].clone(),
@@ -301,23 +333,24 @@ pub async fn create_account(
         let address = format!("{local}@{domain}");
 
         let resp = HTTP
-            .post(format!("{BASE}/accounts"))
+            .post(format!("{base}/accounts"))
             .json(&serde_json::json!({ "address": address, "password": password }))
             .send()
             .await
-            .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+            .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
 
         if resp.status().is_success() {
             let acc: ApiAccount = resp
                 .json()
                 .await
                 .map_err(|e| format!("Dữ liệu tài khoản không hợp lệ: {e}"))?;
-            let token = login(&acc.address, &password).await?;
+            let token = login(base, &acc.address, &password).await?;
             return Ok(MailAccount {
                 id: acc.id,
                 address: acc.address,
                 password,
                 token,
+                base: base.to_string(),
             });
         }
         last_err = map_status(resp.status());
@@ -333,13 +366,13 @@ fn resp_status_is_conflict(msg: &str) -> bool {
     msg.contains("đã tồn tại")
 }
 
-pub async fn login(address: &str, password: &str) -> Result<String, String> {
+pub async fn login(base: &str, address: &str, password: &str) -> Result<String, String> {
     let resp = HTTP
-        .post(format!("{BASE}/token"))
+        .post(format!("{base}/token"))
         .json(&serde_json::json!({ "address": address, "password": password }))
         .send()
         .await
-        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
@@ -351,14 +384,14 @@ pub async fn login(address: &str, password: &str) -> Result<String, String> {
     Ok(t.token)
 }
 
-pub async fn list_messages(token: &str) -> Result<Vec<MailSummary>, String> {
+pub async fn list_messages(base: &str, token: &str) -> Result<Vec<MailSummary>, String> {
     let resp = HTTP
-        .get(format!("{BASE}/messages?page=1"))
+        .get(format!("{base}/messages?page=1"))
         .bearer_auth(token)
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
@@ -387,14 +420,14 @@ pub async fn list_messages(token: &str) -> Result<Vec<MailSummary>, String> {
         .collect())
 }
 
-pub async fn read_message(token: &str, id: &str) -> Result<MailDetail, String> {
+pub async fn read_message(base: &str, token: &str, id: &str) -> Result<MailDetail, String> {
     let resp = HTTP
-        .get(format!("{BASE}/messages/{id}"))
+        .get(format!("{base}/messages/{id}"))
         .bearer_auth(token)
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
     if !resp.status().is_success() {
         return Err(map_status(resp.status()));
     }
@@ -419,13 +452,13 @@ pub async fn read_message(token: &str, id: &str) -> Result<MailDetail, String> {
     })
 }
 
-pub async fn delete_message(token: &str, id: &str) -> Result<(), String> {
+pub async fn delete_message(base: &str, token: &str, id: &str) -> Result<(), String> {
     let resp = HTTP
-        .delete(format!("{BASE}/messages/{id}"))
+        .delete(format!("{base}/messages/{id}"))
         .bearer_auth(token)
         .send()
         .await
-        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
     if resp.status().is_success() || resp.status() == StatusCode::NO_CONTENT {
         Ok(())
     } else {
@@ -433,13 +466,13 @@ pub async fn delete_message(token: &str, id: &str) -> Result<(), String> {
     }
 }
 
-pub async fn delete_account(token: &str, id: &str) -> Result<(), String> {
+pub async fn delete_account(base: &str, token: &str, id: &str) -> Result<(), String> {
     let resp = HTTP
-        .delete(format!("{BASE}/accounts/{id}"))
+        .delete(format!("{base}/accounts/{id}"))
         .bearer_auth(token)
         .send()
         .await
-        .map_err(|e| format!("Không kết nối được mail.tm: {e}"))?;
+        .map_err(|e| format!("Không kết nối được {}: {e}", host_label(base)))?;
     if resp.status().is_success() || resp.status() == StatusCode::NO_CONTENT {
         Ok(())
     } else {
@@ -450,6 +483,37 @@ pub async fn delete_account(token: &str, id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn co_it_nhat_hai_nha_cung_cap() {
+        assert!(
+            PROVIDERS.len() >= 2,
+            "chi co mot nha cung cap thi khong con la du phong"
+        );
+        assert!(PROVIDERS.iter().all(|b| b.starts_with("https://")));
+    }
+
+    #[test]
+    fn nhan_ten_nha_cung_cap_de_doc() {
+        assert_eq!(host_label("https://api.mail.tm"), "mail.tm");
+        assert_eq!(host_label("https://api.mail.gw"), "mail.gw");
+    }
+
+    // mail.gw tra ve domain KHONG co truong isPrivate; neu serde khong mac dinh
+    // duoc thi moi domain cua mail.gw se bi loai het va danh sach lai rong.
+    #[test]
+    fn doc_duoc_domain_thieu_is_private() {
+        let json = r#"[{"domain":"westcast-systems.com","isActive":true}]"#;
+        let v = serde_json::from_str::<ApiList<ApiDomain>>(json)
+            .unwrap()
+            .into_vec();
+        assert_eq!(v.len(), 1);
+        assert!(v[0].is_active);
+        assert!(
+            !v[0].is_private,
+            "thieu isPrivate phai coi la khong rieng tu"
+        );
+    }
 
     // mail.tm tra ve mang tran khi Accept: application/json — day chinh la dang
     // that su gap ngoai doi va la nguyen nhan danh sach ten mien bi rong.

@@ -30,6 +30,9 @@ export type MailAccount = {
   address: string;
   password: string;
   token: string;
+  /** Nhà cung cấp đã tạo địa chỉ này (mail.tm hoặc mail.gw). Địa chỉ lưu từ
+   *  bản cũ không có trường này nên để optional. */
+  base?: string;
 };
 
 export type MailSummary = {
