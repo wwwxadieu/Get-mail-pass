@@ -124,16 +124,24 @@ Repo có sẵn hai workflow GitHub Actions:
 | `.github/workflows/ci.yml` | mỗi push vào `main`, mỗi pull request | `tsc --noEmit` + `vite build`; `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` |
 | `.github/workflows/release.yml` | đẩy tag `v*`, hoặc chạy tay | Build trên `windows-latest` bằng `npm run tauri:build`, xuất installer NSIS + MSI |
 
-Muốn phát hành một bản mới:
+Phát hành một bản mới, chọn một trong hai cách:
+
+**Đẩy tag** — cách thường dùng:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
-Workflow sẽ build và đính kèm `PassMail_1.0.0_x64-setup.exe` cùng `PassMail_1.0.0_x64_en-US.msi`
-vào GitHub Release của tag đó. Nếu chỉ muốn lấy file mà chưa phát hành, chạy tay workflow
-**Release (Windows installer)** rồi tải ở mục artifact.
+**Chạy tay** — vào tab Actions, chọn workflow **Release (Windows installer)**, bấm *Run workflow*
+rồi điền tag (ví dụ `v1.1.0`). Workflow tự tạo tag qua API nên không cần quyền đẩy tag từ máy.
+Bỏ trống ô tag thì chỉ build lấy file, không tạo Release.
+
+Cả hai cách đều build rồi đính kèm `PassMail_<ver>_x64-setup.exe`, `PassMail_<ver>_x64_en-US.msi`
+và `SHA256SUMS.txt` vào GitHub Release.
+
+Trước khi phát hành nhớ nâng phiên bản ở **cả ba** file — `package.json`, `src-tauri/tauri.conf.json`
+và `src-tauri/Cargo.toml` — vì workflow đối chiếu chúng với tag và sẽ dừng ngay nếu lệch.
 
 Job Rust chạy trên Ubuntu nên cần cài sẵn thư viện GUI của hệ thống
 (`libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`,

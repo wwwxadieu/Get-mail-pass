@@ -4,6 +4,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag de phat hanh, vi du v1.1.0. Bo trong thi chi build lay file, khong tao Release.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -20,13 +25,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Workflow chay duoc theo hai duong: push tag, hoac chay tay co dien tag.
+      # Gop lai mot cho de cac buoc sau khong phai biet no den tu dau.
+      - name: Xac dinh tag phat hanh
+        id: rel
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $tag = "${{ github.ref_name }}"
+          } else {
+            $tag = "${{ github.event.inputs.tag }}".Trim()
+          }
+          if ($tag -and $tag -notmatch '^v\d+\.\d+\.\d+') {
+            Write-Host "::error::Tag phai co dang vX.Y.Z, nhan duoc: $tag"
+            exit 1
+          }
+          $publish = if ($tag) { 'true' } else { 'false' }
+          "tag=$tag"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "publish=$publish" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          if ($publish -eq 'true') {
+            Write-Host "Se phat hanh Release voi tag $tag"
+          } else {
+            Write-Host "Khong dien tag — chi build lay file, khong tao Release"
+          }
+
       # Tag v1.2.3 ma package.json van ghi 1.0.0 thi installer se ra ten sai.
       # Bat loi ngay tu dau thay vi build 15 phut roi moi phat hien.
       - name: Kiem tra phien ban tag khop ma nguon
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.rel.outputs.publish == 'true'
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}" -replace '^v', ''
+          $version = "${{ steps.rel.outputs.tag }}" -replace '^v', ''
           $pkg  = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $conf = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
           $m = Select-String -Path src-tauri/Cargo.toml -Pattern '^version\s*=\s*"(.+)"' | Select-Object -First 1
@@ -48,7 +77,7 @@ jobs:
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           # Tag co dau gach ngang (v1.1.0-beta.1) duoc coi la ban thu nghiem.
-          $prerelease = if ("${{ github.ref_name }}" -match '-') { 'true' } else { 'false' }
+          $prerelease = if ("${{ steps.rel.outputs.tag }}" -match '-') { 'true' } else { 'false' }
           "version=$version"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "prerelease=$prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
@@ -93,10 +122,14 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             SHA256SUMS.txt
 
+      # Khi chay tay, tag chua ton tai — action tu tao no qua API bang GITHUB_TOKEN
+      # (job da co permissions: contents: write), nen khong can push tag tu git.
       - name: Dinh kem vao GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.rel.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: PassMail ${{ steps.meta.outputs.version }}
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
