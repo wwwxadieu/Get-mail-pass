@@ -16,7 +16,10 @@ Chưa có thay đổi nào. · Nothing yet.
 
 ---
 
-## [1.0.1] — 2026-09-02
+## [1.1.0] — 2026-09-02
+
+> **VI —** Gộp cả phần đã chuẩn bị cho 1.0.1; bản đó chưa từng được tag nên không phát hành riêng.
+> **EN —** Includes everything staged for 1.0.1; that version was never tagged, so it is not released separately.
 
 ### Đã thêm · Added
 
@@ -24,6 +27,28 @@ Chưa có thay đổi nào. · Nothing yet.
   **EN —** Fallback provider for disposable email: tries mail.tm, then [mail.gw](https://mail.gw). Both run the same codebase so the API is identical; `/domains`, `/accounts`, `/token` and `/messages` were all verified against mail.gw (#4).
 
 ### Đã đổi · Changed
+
+**Giao diện · Interface**
+
+- **VI —** Làm lại toàn bộ giao diện theo Apple Human Interface Guidelines: bảng màu hệ thống của Apple (systemBlue, systemGray, systemGreen…), thang chữ 13px của macOS, nhịp giãn cách 4pt, bo góc 12px cho thẻ và 8px cho điều khiển.
+  **EN —** Reworked the interface against Apple's Human Interface Guidelines: Apple's system palette (systemBlue, systemGray, systemGreen…), the 13px macOS type scale, a 4pt spacing rhythm, 12px card and 8px control radii.
+- **VI —** Nền dịu lại: ba khối gradient động đã được thay bằng một lớp wash tĩnh rất nhạt, đủ để có chiều sâu mà không tranh chỗ với nội dung.
+  **EN —** Calmer background: the three animated gradient blobs are replaced by a single, very faint static wash — enough depth without competing with the content.
+- **VI —** Nút bấm đổi nền khi trỏ chuột thay vì nhấc lên và đổ bóng; công tắc chuyển sang màu xanh lá kiểu Apple; thêm vòng focus rõ ràng cho người dùng bàn phím.
+  **EN —** Buttons change fill on hover instead of lifting with a shadow; switches use Apple's green; a clear focus ring was added for keyboard users.
+- **VI —** Nút phụ cạnh nút chính (tạo lại, làm mới) nay có viền — trước đó trong suốt hoàn toàn nên nhìn không ra là bấm được.
+  **EN —** Secondary buttons beside a primary action (regenerate, refresh) now have a border — previously fully transparent, so they did not read as clickable.
+
+**Hiệu năng · Performance**
+
+- **VI —** Bỏ `backdrop-filter: blur(28px)` trên các panel. Panel có thanh cuộn, nên mỗi khung hình khi cuộn đều phải vẽ lại vùng mờ — đây là nguồn giật chính.
+  **EN —** Dropped `backdrop-filter: blur(28px)` from the panels. They scroll, so every frame during a scroll had to re-render the blurred region — the main source of jank.
+- **VI —** Debounce việc sinh lại mật khẩu 140 ms. Kéo thanh độ dài 51 bước trước đây bắn 51 lời gọi IPC sang Rust, mỗi lời gọi còn lấy mẫu từ chối; nay chỉ còn **1** (đo bằng bộ đếm trên bản chạy thật).
+  **EN —** Password regeneration is debounced by 140 ms. Dragging the length slider 51 steps previously fired 51 IPC calls into Rust, each running rejection sampling; it now fires **1** (measured with a counter on a live build).
+- **VI —** Đánh số từng yêu cầu sinh mật khẩu: nếu hai lần chồng nhau, kết quả cũ không còn ghi đè kết quả mới, tránh hiện mật khẩu không khớp tuỳ chọn đang bật.
+  **EN —** Each generation request is sequenced, so an older in-flight result can no longer overwrite a newer one and display a password that does not match the active options.
+
+**Email tạm · Disposable email**
 
 - **VI —** Tài khoản nhớ luôn nhà cung cấp đã tạo ra nó (`MailAccount.base`), vì tài khoản mail.tm không đăng nhập được ở mail.gw và ngược lại. Mọi lời gọi sau đó — đăng nhập lại, đọc thư, xoá thư, xoá địa chỉ, và vòng lặp theo dõi hộp thư — đều đi đúng nhà cung cấp đó.
   **EN —** An account now records the provider that created it (`MailAccount.base`), because a mail.tm account cannot authenticate against mail.gw or vice versa. Every subsequent call — re-login, reading, deleting mail, deleting the address, and the inbox polling loop — is routed to that same provider.
@@ -104,6 +129,6 @@ Bản phát hành đầu tiên. · First public release.
 - **VI —** Chỉ hỗ trợ Windows x64. Chưa có bản macOS hay Linux.
   **EN —** Windows x64 only. No macOS or Linux build yet.
 
-[Chưa phát hành]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.1...HEAD
-[1.0.1]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.0...v1.0.1
+[Chưa phát hành]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/wwwxadieu/Get-mail-pass/releases/tag/v1.0.0

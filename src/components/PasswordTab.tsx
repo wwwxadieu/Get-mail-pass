@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errText } from "../lib/api";
 import type { GeneratedPassword, PassphraseOptions, PasswordOptions } from "../lib/types";
 import Switch from "./Switch";
@@ -54,34 +54,53 @@ export default function PasswordTab({ onGenerated, onCopy, notify }: Props) {
 
   const classCount = [pw.lowercase, pw.uppercase, pw.digits, pw.symbols].filter(Boolean).length;
 
+  // Đánh số từng yêu cầu: nếu hai lần sinh chồng nhau, kết quả về sau mới được
+  // hiển thị. Không có nó thì một lời gọi chậm có thể ghi đè kết quả mới hơn,
+  // làm mật khẩu hiện ra không khớp với tuỳ chọn đang bật.
+  const reqId = useRef(0);
+
   const generate = useCallback(
     async (record: boolean) => {
+      const id = ++reqId.current;
       setBusy(true);
       try {
         const r =
           mode === "password"
             ? await api.generatePassword(pw)
             : await api.generatePassphrase(pp);
+        if (id !== reqId.current) return; // đã có yêu cầu mới hơn
         setResult(r);
         setError(null);
         if (record) {
           onGenerated(mode, r.value, `${r.label} · ${r.entropyBits} bit`);
         }
       } catch (e) {
+        if (id !== reqId.current) return;
         // Hiện lỗi ngay trong ô kết quả, không để mật khẩu cũ nằm lại gây hiểu nhầm
         setResult(null);
         setError(errText(e));
       } finally {
-        setBusy(false);
+        if (id === reqId.current) setBusy(false);
       }
     },
-    [mode, pw, pp, onGenerated, notify],
+    [mode, pw, pp, onGenerated],
   );
 
-  // Sinh lại mỗi khi đổi tuỳ chọn (không ghi vào lịch sử để tránh spam)
+  // Sinh lại mỗi khi đổi tuỳ chọn (không ghi vào lịch sử để tránh spam).
+  // Kéo thanh độ dài từ 20 lên 128 làm state đổi hơn trăm lần; sinh ngay lập tức
+  // nghĩa là hơn trăm lời gọi IPC sang Rust, mỗi lời gọi còn lấy mẫu từ chối.
+  // Chờ lắng 140ms rồi mới sinh — mắt không thấy trễ, máy đỡ hẳn.
+  // Lần đầu thì sinh ngay, để mở app lên là đã có sẵn mật khẩu.
+  const firstRun = useRef(true);
   useEffect(() => {
     if (classCount === 0) return;
-    void generate(false);
+    if (firstRun.current) {
+      firstRun.current = false;
+      void generate(false);
+      return;
+    }
+    const t = window.setTimeout(() => void generate(false), 140);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, pw, pp]);
 
