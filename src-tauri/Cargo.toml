@@ -1,6 +1,6 @@
 [package]
 name = "passmail"
-version = "1.1.0"
+version = "1.1.1"
 description = "Tao mat khau manh va email dung mot lan"
 authors = ["MrBeoHP"]
 edition = "2021"

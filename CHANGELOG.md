@@ -16,6 +16,17 @@ Chưa có thay đổi nào. · Nothing yet.
 
 ---
 
+## [1.1.1] — 2026-09-02
+
+### Đã sửa · Fixed
+
+- **VI —** Chặn menu chuột phải mặc định của WebView trên toàn app. Menu đó là của trình duyệt (Reload, Back, Inspect…), lạc lõng trong một app desktop và còn mở được DevTools. Vẫn chừa lại đúng những chỗ mà chép chính là mục đích: ô mật khẩu đã sinh và nội dung thư.
+  **EN —** Suppressed the WebView's default context menu across the app. That menu belongs to a browser (Reload, Back, Inspect…), looks out of place in a desktop app, and exposes DevTools. It is still available exactly where copying is the point: the generated password and the message body.
+- **VI —** Ô nhập vẫn giữ menu chuột phải, vì chặn ở đó sẽ mất luôn lệnh Dán.
+  **EN —** Text inputs keep their context menu, since removing it would also remove Paste.
+
+---
+
 ## [1.1.0] — 2026-09-02
 
 > **VI —** Gộp cả phần đã chuẩn bị cho 1.0.1; bản đó chưa từng được tag nên không phát hành riêng.
@@ -129,6 +140,7 @@ Bản phát hành đầu tiên. · First public release.
 - **VI —** Chỉ hỗ trợ Windows x64. Chưa có bản macOS hay Linux.
   **EN —** Windows x64 only. No macOS or Linux build yet.
 
-[Chưa phát hành]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.1.0...HEAD
+[Chưa phát hành]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/wwwxadieu/Get-mail-pass/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/wwwxadieu/Get-mail-pass/releases/tag/v1.0.0

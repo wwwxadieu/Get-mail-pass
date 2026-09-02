@@ -43,6 +43,23 @@ export default function App() {
     localStorage.setItem(HIST_KEY, JSON.stringify(history));
   }, [history]);
 
+  // WebView bật sẵn menu chuột phải của trình duyệt (Reload, Back, Inspect…).
+  // Trong một app desktop thì nó vừa lạc lõng vừa cho phép mở DevTools. Chặn
+  // toàn bộ, chỉ chừa những chỗ mà chép chính là mục đích: mật khẩu đã sinh và
+  // nội dung thư — đánh dấu bằng [data-copyable].
+  //
+  // Ô nhập cũng được chừa: chặn menu ở đó sẽ mất luôn Dán, mà người dùng không
+  // phải lúc nào cũng biết Ctrl+V.
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("[data-copyable], input, textarea")) return;
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", onContextMenu);
+    return () => document.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   // Xin quyền thông báo một lần khi mở app
   useEffect(() => {
     void (async () => {
